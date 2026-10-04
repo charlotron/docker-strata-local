@@ -1,0 +1,59 @@
+# =================================================================
+# DOCKER COMPOSE CONFIGURATION - STRATA, QWEN3.8-FLASH-NEXT CODER (IQ1_M)
+# =================================================================
+# The image is built from Strata's own Dockerfile at STRATA_REF: the engine is
+# compiled from source during the build, so no prebuilt binary is downloaded.
+# The first container start downloads the model into /data and writes the
+# install config there; later starts go straight to serving.
+#
+# LOW_RAM=on is mandatory here: setup.py sizes itself from /proc/meminfo, and
+# the WSL2 VM (28 GB) cannot hold the Coder's ~23 GB of experts next to
+# everything else. The experts are mapped from /data instead.
+
+name: strata-gpu-qwen3-8-flash-next-coder
+
+services:
+  gpu-qwen3-8-flash-next-coder:
+    build:
+      context: "https://github.com/Niko1221/Strata.git#${STRATA_REF:?STRATA_REF is not set}"
+      args:
+        CUDA_ARCHITECTURES: "${STRATA_CUDA_ARCH:-89}"
+        BUILD_VISION: "0"
+    image: "strata-local:${STRATA_REF}"
+
+    container_name: strata-gpu-qwen3.8-flash-next-coder
+
+    # Below the 28 GB WSL2 VM so a runaway kills the container, not the VM.
+    mem_limit: 26g
+
+    ulimits:
+      memlock: -1
+
+    ports:
+      - "${STRATA_PORT:-12345}:${STRATA_PORT:-12345}"
+
+    volumes:
+      - ${STRATA_DATA_DIR:-./docker/data/strata}:/data
+
+    environment:
+      FAMILY: "${STRATA_FAMILY:?STRATA_FAMILY is not set}"
+      MODEL: "${STRATA_MODEL:?STRATA_MODEL is not set}"
+      CONTEXT: "${STRATA_CONTEXT_SIZE:-131072}"
+      KV: "${STRATA_KV:-}"
+      VISION: "no"
+      LOW_RAM: "on"
+      HOST: "0.0.0.0"
+      PORT: "${STRATA_PORT:-12345}"
+      API_KEY: "${STRATA_API_KEY:-}"
+      # 1 re-runs setup to apply new context / KV / API key (see AGENTS.md).
+      REINSTALL: "${REINSTALL:-0}"
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    restart: unless-stopped

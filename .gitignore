@@ -1,0 +1,13 @@
+# Model data and logs
+**/data/
+**/logs/
+
+# Any real .env* file is host-specific: only the .sample templates are tracked.
+.env
+.env.*
+!.env.*.sample
+*.log
+
+# IDEs
+.idea/
+.vscode/
