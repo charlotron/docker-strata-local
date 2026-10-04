@@ -66,9 +66,10 @@ MODEL_NAME=$(curl -s --max-time 3 "${AUTH[@]}" "http://$STRATA_HOST:$STRATA_PORT
 MODEL_NAME=$(basename "${MODEL_NAME:-strata-local}" .gguf)
 export MODEL_NAME
 
-# Output cap: a quarter of the context, at most 32768. Compaction keeps twice
+# Output cap: a third of the context, at most 32768 (the full 32768 from 100K
+# up, so the compaction buffer holds a whole response). Compaction keeps twice
 # that, at most half the context.
-STRATA_OUTPUT_LIMIT=$((STRATA_CONTEXT_SIZE / 4))
+STRATA_OUTPUT_LIMIT=$((STRATA_CONTEXT_SIZE / 3))
 (( STRATA_OUTPUT_LIMIT > 32768 )) && STRATA_OUTPUT_LIMIT=32768
 export STRATA_OUTPUT_LIMIT
 export STRATA_COMPACT_BUFFER=$((STRATA_OUTPUT_LIMIT + 1000))
