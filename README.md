@@ -3,7 +3,9 @@
 Runs [Strata](https://github.com/Niko1221/Strata) inside Docker on an NVIDIA
 GPU and connects OpenCode to it. Strata serves Qwen3.8-Flash-Next, a
 125B-parameter MoE, on a consumer PC by keeping the most used experts on the
-GPU and mapping the rest from disk.
+GPU and the rest in RAM. This repo runs the Coder variant (half the experts
+pruned, tuned for code): see [docs/MODEL.md](docs/MODEL.md) for its real size,
+architecture and memory layout.
 
 Sibling of `docker-llama-local`: same layout, same port (12345), same client
 workflow. Only one of the two can run at a time on a 12 GB GPU, and each
@@ -20,6 +22,7 @@ launcher stops the other's containers first.
   straight away.
 - **API** on port 12345: web UI at `/`, OpenAI at `/v1` (chat completions,
   responses), Anthropic at `/v1/messages`, plus `/health`, `/props`, `/slots`.
+  The llama.cpp clients work unchanged against it ([details](docs/MODEL.md#api-compatibility-with-llamacpp-clients)).
 
 ## Measured (RTX 4070 SUPER 12 GB, Ryzen 7 7700X, 32 GB host / 28 GB WSL2 VM)
 
