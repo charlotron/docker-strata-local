@@ -26,7 +26,11 @@ launcher stops the other's containers first.
 
 ## Measured (RTX 4070 SUPER 12 GB, Ryzen 7 7700X, 32 GB host / 28 GB WSL2 VM)
 
-Coder IQ1_M, 128K context, KV q4_0, all 19.67 GiB of CPU-side experts in RAM.
+Default setup: Coder IQ1_M, 100K context, KV q4_0, all 19.42 GiB of CPU-side
+experts in RAM: short answers at ~45 tok/s.
+
+The table below was measured with 128K context. That setting does not keep
+every expert in RAM, and long agent sessions stalled with it (see AGENTS.md).
 Code prompts with a needle in the middle; the follow-up reuses the cached
 conversation.
 

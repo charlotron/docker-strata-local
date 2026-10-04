@@ -32,24 +32,37 @@ and any SSH server running inside WSL.
 
 ## How the Coder fits (resident low-RAM mode)
 
-The Coder has ~23 GB of experts. The GPU caches the 1948 hottest (3.75 GB);
-the other **19.67 GiB** must be in RAM, or the engine reads them through mmap
-page faults and stalls. The compose file makes that happen:
+The Coder has ~23 GB of experts. At 100K context the GPU caches the 2082
+hottest (4.0 GB); the other **19.42 GiB** must be in RAM, or the engine reads
+them through mmap page faults and stalls. The compose file makes that happen:
 
 - `LOW_RAM=on` + setup's `--resident-experts` pick: the engine copies the
   experts the GPU does not hold into RAM at start (~1-2 min).
 - `STRATA_RESIDENT_PIN=0`: the copy is pageable. Page-locking 20 GB under
   WSL2 took 15+ min and pushed the VM into swap.
-- `STRATA_RESIDENT_BUDGET_GIB=20` (a local entrypoint patch writes it as
-  `--resident-budget-gib` into the model config): exactly the 19.67 GiB.
-  Without it the engine also grabs the prompt path's experts (22.8 GiB) and
-  the VM runs out of memory.
+- `STRATA_RESIDENT_BUDGET_GIB=22` (a local entrypoint patch writes it as
+  `--resident-budget-gib` into the model config): room for the whole
+  complement. Without a cap the engine sizes it from free RAM and can starve
+  the VM.
 - `STRATA_RESIDENT_HEADROOM_GIB=1`: the engine's own safety margin (default
   4 GB) would otherwise cut the copy to ~13 GB.
 - No `mem_limit`: under cgroup v1, Strata reads "limit - usage" as free RAM,
   and usage counts reclaimable page cache, so any cap shrinks the copy.
 
-A healthy start logs `resident 19.67 GiB` and leaves ~4 GB available in the VM.
+A healthy start logs `resident RAM mode: 19.42 GiB of experts in RAM ...
+(no file reads)` and leaves ~4 GB available in the VM. If the log instead says
+part of the experts "are read from the files", decoding will stall for
+minutes in long sessions.
+
+History, so nobody repeats it:
+
+- 128K context + budget 20: the GPU cache held fewer experts, the complement
+  did not fit the budget and ~4.5 GB of experts were read through the page
+  cache. Long OpenCode sessions (50K+ tokens) stalled for ~5 min mid-answer
+  once the VM evicted those pages.
+- WSL memory at 30 GB: Windows was left with ~11 MB free and paged the VM's
+  own memory out; generation fell to ~1 tok/s. 28 GB is the ceiling on a
+  32 GB host.
 
 ## Local patches (docker/strata)
 
@@ -100,8 +113,10 @@ Under WSL, Strata cannot stream the KV cache to RAM (the driver pins only
 ~1 GB), so the whole KV cache stays in VRAM and competes with the experts
 cached there. The model is hybrid and the KV cache is small (~0.9 GB at 128K
 with `q4_0`), but a bigger context still means fewer experts on the GPU and
-slower decoding. If the log reports little free VRAM, lower
-`STRATA_CONTEXT_SIZE` (65536) before anything else.
+slower decoding, and more experts that must fit in RAM. 102400 (100K) is the
+largest context whose complement fits a 28 GB VM; 128K does not (see above).
+If the log reports little free VRAM, lower `STRATA_CONTEXT_SIZE` (65536)
+before anything else.
 
 Context, KV type, vision and API key are written into the model's config on
 the first start. Changing them in the env file does nothing until a launch

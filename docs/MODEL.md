@@ -62,13 +62,13 @@ the per-token compute of a small one.
 
 ## Where each part lives (reference host)
 
-RTX 4070 SUPER 12 GB, 28 GB WSL2 VM, 128K context, KV q4_0, low-RAM
+RTX 4070 SUPER 12 GB, 28 GB WSL2 VM, 100K context, KV q4_0, low-RAM
 resident mode (see AGENTS.md):
 
 | Location | Contents | Size |
 | --- | --- | --- |
-| GPU (VRAM) | attention and DeltaNet mixers, routers, shared experts, output head, MTP layer, KV cache, and an **expert cache** of the most used experts (adapts during the conversation) | expert cache: 1,948 experts, 3.75 GiB (~16% of the experts) |
-| RAM | every expert not in the GPU cache, computed in place by the CPU while the GPU works on its own share | ~10,300 experts, 19.67 GiB |
+| GPU (VRAM) | attention and DeltaNet mixers, routers, shared experts, output head, MTP layer, KV cache, and an **expert cache** of the most used experts (adapts during the conversation) | expert cache: 2,082 experts, 4.0 GiB (~17% of the experts) |
+| RAM | every expert not in the GPU cache, computed in place by the CPU while the GPU works on its own share | ~10,200 experts, 19.42 GiB |
 | SSD | the PLE n-gram table, read a few rows per token | 28.8 GB |
 
 All the experts must fit in RAM. Any expert read from the SSD during decoding

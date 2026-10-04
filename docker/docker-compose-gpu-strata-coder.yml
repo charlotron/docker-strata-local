@@ -40,7 +40,7 @@ services:
     environment:
       FAMILY: "${STRATA_FAMILY:?STRATA_FAMILY is not set}"
       MODEL: "${STRATA_MODEL:?STRATA_MODEL is not set}"
-      CONTEXT: "${STRATA_CONTEXT_SIZE:-131072}"
+      CONTEXT: "${STRATA_CONTEXT_SIZE:-102400}"
       KV: "${STRATA_KV:-}"
       VISION: "no"
       LOW_RAM: "on"
@@ -58,7 +58,7 @@ services:
       # The Coder's experts the GPU cache does not hold are 19.7 GiB: keep
       # exactly those in RAM. Without a budget the engine also takes the prompt
       # path's experts (22.8 GiB), which starves the 28 GB VM and stalls it.
-      STRATA_RESIDENT_BUDGET_GIB: "${STRATA_RESIDENT_BUDGET_GIB:-20}"
+      STRATA_RESIDENT_BUDGET_GIB: "${STRATA_RESIDENT_BUDGET_GIB:-22}"
       # Hard cap on the thinking channel; must stay below the client's output
       # limit (OpenCode: 32768) or empty answers come back (see AGENTS.md).
       STRATA_REASONING_BUDGET_TOKENS: "${STRATA_REASONING_BUDGET_TOKENS:-8192}"
