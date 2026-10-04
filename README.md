@@ -12,14 +12,30 @@ launcher stops the other's containers first.
 ## Architecture
 
 - **Image**: built locally from Strata's own `Dockerfile` at a pinned commit
-  (`STRATA_REF`). The CUDA engine is compiled from source during the build; no
-  prebuilt binary is downloaded.
+  (`STRATA_REF`), plus the patches in `docker/strata` (see AGENTS.md). The CUDA
+  engine is compiled from source; no prebuilt binary is downloaded.
 - **Data dir** (`STRATA_DATA_DIR`, mounted at `/data`): model shards, the
   prepared pack, the MTP draft layer and the install config. The first start
   downloads the model into it (~58 GB for the Coder); later starts serve
   straight away.
 - **API** on port 12345: web UI at `/`, OpenAI at `/v1` (chat completions,
   responses), Anthropic at `/v1/messages`, plus `/health`, `/props`, `/slots`.
+
+## Measured (RTX 4070 SUPER 12 GB, Ryzen 7 7700X, 32 GB host / 28 GB WSL2 VM)
+
+Coder IQ1_M, 128K context, KV q4_0, all 19.67 GiB of CPU-side experts in RAM.
+Code prompts with a needle in the middle; the follow-up reuses the cached
+conversation.
+
+| Prompt | Prompt read | Generation | Needle | Follow-up turn |
+| --- | ---: | ---: | :---: | --- |
+| short | - | 39-43 tok/s | - | - |
+| 61K tokens (cold start) | 455 tok/s (134 s) | 34 tok/s | found | 5.5 s, 39 tok/s |
+| 61K tokens (warm) | 719 tok/s (85 s) | 40 tok/s | found | 6.5 s, 33 tok/s |
+| 96K tokens | 600-930 tok/s (100-160 s) | 34 tok/s (1,500-token answer) | found | 5.6 s, 38 tok/s |
+
+The first tokens right after a long prompt are slower (~10 tok/s) while the
+engine hands the borrowed GPU cache slots back.
 
 ## Quick start
 
@@ -31,7 +47,7 @@ launcher stops the other's containers first.
   # %USERPROFILE%\.wslconfig
   [wsl2]
   memory=28GB
-  swap=8GB
+  kernelCommandLine=transparent_hugepage=madvise
   ```
   then `wsl --shutdown` from PowerShell.
 - ~70 GB free on the disk holding `STRATA_DATA_DIR`. Use native WSL storage

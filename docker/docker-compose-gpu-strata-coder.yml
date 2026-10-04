@@ -1,30 +1,32 @@
 # =================================================================
 # DOCKER COMPOSE CONFIGURATION - STRATA, QWEN3.8-FLASH-NEXT CODER (IQ1_M)
 # =================================================================
-# The image is built from Strata's own Dockerfile at STRATA_REF: the engine is
-# compiled from source during the build, so no prebuilt binary is downloaded.
+# launch-server.sh builds strata-upstream:<STRATA_REF> from Strata's own
+# Dockerfile (engine compiled from source, no prebuilt binary); this service
+# adds the patches in docker/strata/patches on top of it.
 # The first container start downloads the model into /data and writes the
 # install config there; later starts go straight to serving.
 #
-# LOW_RAM=on is mandatory here: setup.py sizes itself from /proc/meminfo, and
-# the WSL2 VM (28 GB) cannot hold the Coder's ~23 GB of experts next to
-# everything else. The experts are mapped from /data instead.
+# LOW_RAM=on is mandatory here: the WSL2 VM (28 GB) cannot hold all ~23 GB of
+# the Coder's experts next to everything else. The GPU caches the hottest
+# ones and the rest (19.7 GiB) are copied into RAM at start (resident mode).
 
 name: strata-gpu-qwen3-8-flash-next-coder
 
 services:
   gpu-qwen3-8-flash-next-coder:
     build:
-      context: "https://github.com/Niko1221/Strata.git#${STRATA_REF:?STRATA_REF is not set}"
+      context: ./strata
       args:
-        CUDA_ARCHITECTURES: "${STRATA_CUDA_ARCH:-89}"
-        BUILD_VISION: "0"
+        STRATA_REF: "${STRATA_REF:?STRATA_REF is not set}"
     image: "strata-local:${STRATA_REF}"
 
     container_name: strata-gpu-qwen3.8-flash-next-coder
 
-    # Below the 28 GB WSL2 VM so a runaway kills the container, not the VM.
-    mem_limit: 26g
+    # No mem_limit: under cgroup v1 Strata reads "limit - usage" as the free
+    # RAM, and usage counts reclaimable page cache, so any cap here shrinks the
+    # resident experts. The 28 GB WSL2 VM is the limit; its OOM killer picks
+    # Strata first if it ever runs away.
 
     ulimits:
       memlock: -1
@@ -47,6 +49,18 @@ services:
       API_KEY: "${STRATA_API_KEY:-}"
       # 1 re-runs setup to apply new context / KV / API key (see AGENTS.md).
       REINSTALL: "${REINSTALL:-0}"
+      # Pageable resident experts: WSL2 page-locks host memory very slowly
+      # (a 21 GB pinned copy took 15+ min and pushed the VM into swap).
+      STRATA_RESIDENT_PIN: "${STRATA_RESIDENT_PIN:-0}"
+      # The Coder's experts the GPU cache does not hold are 19.7 GiB: keep
+      # exactly those in RAM. Without a budget the engine also takes the prompt
+      # path's experts (22.8 GiB), which starves the 28 GB VM and stalls it.
+      STRATA_RESIDENT_BUDGET_GIB: "${STRATA_RESIDENT_BUDGET_GIB:-20}"
+      # Free RAM the engine keeps aside when sizing that copy (default 4).
+      STRATA_RESIDENT_HEADROOM_GIB: "${STRATA_RESIDENT_HEADROOM_GIB:-1}"
+      # A cold first prompt reads the experts its chunk displaces from disk and
+      # one layer can exceed the engine's 60 s stall watchdog; give it room.
+      STRATA_WATCHDOG_S: "${STRATA_WATCHDOG_S:-300}"
 
     deploy:
       resources:

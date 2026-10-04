@@ -102,16 +102,25 @@ if [ -n "$VM_RAM_GB" ] && [ "$VM_RAM_GB" -lt 26 ]; then
 fi
 
 print_header "IMAGE"
-if docker image inspect "$IMAGE" &> /dev/null; then
-    print_success "$IMAGE already built"
+BASE_IMAGE="strata-upstream:$STRATA_REF"
+if docker image inspect "$BASE_IMAGE" &> /dev/null; then
+    print_success "$BASE_IMAGE already built"
 else
-    print_step "Building $IMAGE from source (compiles the CUDA engine, 10-30 min)"
-    if ! docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" build; then
-        print_error "Image build failed"
+    print_step "Building $BASE_IMAGE from Strata's Dockerfile (compiles the CUDA engine)"
+    if ! docker build -t "$BASE_IMAGE" \
+            --build-arg CUDA_ARCHITECTURES="${STRATA_CUDA_ARCH:-89}" --build-arg BUILD_VISION=0 \
+            "https://github.com/Niko1221/Strata.git#$STRATA_REF"; then
+        print_error "Base image build failed"
         exit 1
     fi
-    print_success "$IMAGE built"
 fi
+# Cached when docker/strata is unchanged; rebuilds the engine when a patch changes.
+print_step "Applying local patches ($IMAGE)"
+if ! docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" build; then
+    print_error "Image build failed"
+    exit 1
+fi
+print_success "$IMAGE ready"
 
 print_header "DOCKER DEPLOYMENT"
 print_step "Restarting services"

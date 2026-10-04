@@ -18,24 +18,72 @@ Docker Desktop runs inside the WSL2 VM, so the VM's `memory=` in
 `%USERPROFILE%\.wslconfig` is all the RAM Strata can get, whatever the host
 has. On a 32 GB host:
 
-- **28 GB** is the setting: Windows keeps ~4 GB, the container is capped at
-  26 GB (`mem_limit`) so a runaway kills the container, not the VM.
+- **28 GB** is the setting: Windows keeps ~4 GB.
 - **Never 32 GB** (the whole host): the VM can then take everything, Windows
-  pages to a small pagefile, and the desktop freezes for minutes. Locked
-  (`memlock`) pages cannot be paged out, which makes it worse.
-- The `llama.cpp` profiles in `docker-llama-local` run fine under the same
-  limit.
+  pages to a small pagefile, and the desktop freezes for minutes.
+- Add `kernelCommandLine=transparent_hugepage=madvise` to the same section.
+  With the WSL kernel's default (`always`), allocating ~20 GB next to a full
+  page cache triggers direct compaction stalls: mmap page faults went from
+  0.2 ms to 10+ ms and the engine stalled. `wsl --shutdown` applies it; until
+  then `echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/enabled`.
 
-Changing it needs `wsl --shutdown`, which also stops Docker Desktop and any
-SSH server running inside WSL.
+Changing `.wslconfig` needs `wsl --shutdown`, which also stops Docker Desktop
+and any SSH server running inside WSL.
 
-## Why LOW_RAM=on
+## How the Coder fits (resident low-RAM mode)
 
-Strata's setup sizes itself from `/proc/meminfo`. The Coder needs its ~23 GB
-of experts plus ~10 GB of headroom to keep them all in RAM, which does not fit
-28 GB. With `LOW_RAM=on` the experts are mapped from the data dir, the GPU
-holds the most used ones, and the rest come through the page cache. That makes
-the data dir's disk speed matter: keep it on native WSL storage.
+The Coder has ~23 GB of experts. The GPU caches the 1948 hottest (3.75 GB);
+the other **19.67 GiB** must be in RAM, or the engine reads them through mmap
+page faults and stalls. The compose file makes that happen:
+
+- `LOW_RAM=on` + setup's `--resident-experts` pick: the engine copies the
+  experts the GPU does not hold into RAM at start (~1-2 min).
+- `STRATA_RESIDENT_PIN=0`: the copy is pageable. Page-locking 20 GB under
+  WSL2 took 15+ min and pushed the VM into swap.
+- `STRATA_RESIDENT_BUDGET_GIB=20` (a local entrypoint patch writes it as
+  `--resident-budget-gib` into the model config): exactly the 19.67 GiB.
+  Without it the engine also grabs the prompt path's experts (22.8 GiB) and
+  the VM runs out of memory.
+- `STRATA_RESIDENT_HEADROOM_GIB=1`: the engine's own safety margin (default
+  4 GB) would otherwise cut the copy to ~13 GB.
+- No `mem_limit`: under cgroup v1, Strata reads "limit - usage" as free RAM,
+  and usage counts reclaimable page cache, so any cap shrinks the copy.
+
+A healthy start logs `resident 19.67 GiB` and leaves ~4 GB available in the VM.
+
+## Local patches (docker/strata)
+
+The image is Strata's own (`strata-upstream:<ref>`) plus:
+
+- `patches/0001-cgroup-hybrid-v1-fallback.patch` (engine, rebuilt): Docker
+  Desktop on WSL2 runs a hybrid cgroup hierarchy. `/proc/self/cgroup` has a
+  `0::/docker/<id>` line but no cgroup2 mount is visible, and upstream gives
+  up ("cannot determine available RAM"), which silently disables the resident
+  mode. The patch falls back to the v1 memory controller.
+- `script-patches/0001-resident-budget-env.patch`: `STRATA_RESIDENT_BUDGET_GIB`
+  support in `docker-entrypoint.sh`.
+
+When bumping `STRATA_REF`, check whether upstream fixed these and drop the
+patch, or refresh it if it no longer applies.
+
+## Stall watchdog
+
+The engine kills itself after 60 s without progress (`no progress for 60 s`;
+the request gets a 503 and the next one restarts it). A cold first long prompt
+reads the experts its chunk displaces from disk and one layer can take longer
+than that. `STRATA_WATCHDOG_S=300` gives it room; a real hang still ends.
+
+## Interrupted downloads
+
+If the network drops during the first start, Strata's downloader can keep
+failing with `Connection refused` after the network is back.
+`docker restart <container>` resumes from the `.part` file.
+
+## Requests through another host name
+
+Strata refuses requests whose `Host` header is not one it answers to
+(`refused a request for Host '...'`). A reverse proxy in front of it needs
+that name in `allowed_hosts` / `STRATA_ALLOWED_HOSTS`, or an API key.
 
 ## Context and VRAM
 

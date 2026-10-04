@@ -1,0 +1,13 @@
+--- a/src/core/expert_source.cpp	2026-10-04 19:52:36
++++ b/src/core/expert_source.cpp	2026-10-04 19:52:37
+@@ -263,7 +263,9 @@
+             continue;
+         }
+         auto path = (root / line.substr(4)).lexically_normal();
+-        if (path.string().rfind(root.string(), 0) != 0 || !std::filesystem::is_directory(path)) return false;
++        // A v2 line without its cgroup2 mount (Docker Desktop on WSL2: hybrid hierarchy, only v1 mounted in the
++        // container): fall back to the v1 memory controller instead of giving up.
++        if (path.string().rfind(root.string(), 0) != 0 || !std::filesystem::is_directory(path)) continue;
+         v2 = true;
+         while (path.string().rfind(root.string(), 0) == 0) {
+             std::ifstream limit_file(path / "memory.max"), current_file(path / "memory.current");

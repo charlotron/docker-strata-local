@@ -1,0 +1,27 @@
+--- a/docker-entrypoint.sh	2026-10-04 21:25:26
++++ b/docker-entrypoint.sh	2026-10-04 21:25:26
+@@ -52,6 +52,24 @@
+   [ -e "/opt/strata/strata-$tag.json" ] || ln -s "$cfg" "/opt/strata/strata-$tag.json"
+ fi
+ 
++# Local patch: STRATA_RESIDENT_BUDGET_GIB caps the experts kept in RAM
++# (--resident-budget-gib), in the saved config and in the live copy setup reads.
++if [ -n "${STRATA_RESIDENT_BUDGET_GIB:-}" ]; then
++  .venv/bin/python - "$cfg" "/opt/strata/strata-$tag.json" "$STRATA_RESIDENT_BUDGET_GIB" <<'PY'
++import json, os, sys
++cfg, live, gib = sys.argv[1:4]
++c = json.load(open(cfg))
++a = c["args"]
++if "--resident-budget-gib" in a:
++    a[a.index("--resident-budget-gib") + 1] = gib
++else:
++    a += ["--resident-budget-gib", gib]
++json.dump(c, open(cfg, "w"), indent=1)
++if os.path.exists(live) and not os.path.islink(live):
++    json.dump(c, open(live, "w"), indent=1)
++PY
++fi
++
+ # Later starts skip straight here: setup.py finds the installed config and
+ # launches serve/server.py (OpenAI- and Anthropic-compatible API on :8080).
+ # GPUS / GPU / LAYER_SPLIT are repeated on purpose. Given at the start they pin the
