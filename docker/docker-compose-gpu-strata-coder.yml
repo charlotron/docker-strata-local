@@ -47,6 +47,9 @@ services:
       HOST: "0.0.0.0"
       PORT: "${STRATA_PORT:-12345}"
       API_KEY: "${STRATA_API_KEY:-}"
+      # Extra Host names Strata answers to (DNS rebinding protection), comma
+      # separated: needed when clients reach it by hostname, not by IP.
+      STRATA_ALLOWED_HOSTS: "${STRATA_ALLOWED_HOSTS:-}"
       # 1 re-runs setup to apply new context / KV / API key (see AGENTS.md).
       REINSTALL: "${REINSTALL:-0}"
       # Pageable resident experts: WSL2 page-locks host memory very slowly
@@ -56,6 +59,9 @@ services:
       # exactly those in RAM. Without a budget the engine also takes the prompt
       # path's experts (22.8 GiB), which starves the 28 GB VM and stalls it.
       STRATA_RESIDENT_BUDGET_GIB: "${STRATA_RESIDENT_BUDGET_GIB:-20}"
+      # Hard cap on the thinking channel; must stay below the client's output
+      # limit (OpenCode: 32768) or empty answers come back (see AGENTS.md).
+      STRATA_REASONING_BUDGET_TOKENS: "${STRATA_REASONING_BUDGET_TOKENS:-8192}"
       # Free RAM the engine keeps aside when sizing that copy (default 4).
       STRATA_RESIDENT_HEADROOM_GIB: "${STRATA_RESIDENT_HEADROOM_GIB:-1}"
       # A cold first prompt reads the experts its chunk displaces from disk and

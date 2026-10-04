@@ -60,8 +60,10 @@ The image is Strata's own (`strata-upstream:<ref>`) plus:
   `0::/docker/<id>` line but no cgroup2 mount is visible, and upstream gives
   up ("cannot determine available RAM"), which silently disables the resident
   mode. The patch falls back to the v1 memory controller.
-- `script-patches/0001-resident-budget-env.patch`: `STRATA_RESIDENT_BUDGET_GIB`
-  support in `docker-entrypoint.sh`.
+- `script-patches/0001-config-overrides-env.patch`: `docker-entrypoint.sh`
+  writes `STRATA_RESIDENT_BUDGET_GIB` (`--resident-budget-gib`) and
+  `STRATA_REASONING_BUDGET_TOKENS` (`reasoning_budget_tokens`) into the
+  model's config on every start.
 
 When bumping `STRATA_REF`, check whether upstream fixed these and drop the
 patch, or refresh it if it no longer applies.
@@ -72,6 +74,13 @@ The engine kills itself after 60 s without progress (`no progress for 60 s`;
 the request gets a 503 and the next one restarts it). A cold first long prompt
 reads the experts its chunk displaces from disk and one layer can take longer
 than that. `STRATA_WATCHDOG_S=300` gives it room; a real hang still ends.
+
+## Thinking budget
+
+Without a cap the model can think until the request's `max_tokens`: an
+OpenCode session-title request once produced 32,000 tokens (7 min) before a
+one-line title. `STRATA_REASONING_BUDGET_TOKENS=8192` ends the thinking there
+and makes the model answer. Keep it below every client's output limit.
 
 ## Interrupted downloads
 
