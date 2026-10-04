@@ -62,6 +62,8 @@ services:
       # Hard cap on the thinking channel; must stay below the client's output
       # limit (OpenCode: 32768) or empty answers come back (see AGENTS.md).
       STRATA_REASONING_BUDGET_TOKENS: "${STRATA_REASONING_BUDGET_TOKENS:-8192}"
+      # Shrink max_tokens to the room left instead of rejecting the request.
+      STRATA_FIT_MAX_TOKENS: "${STRATA_FIT_MAX_TOKENS:-1}"
       # Free RAM the engine keeps aside when sizing that copy (default 4).
       STRATA_RESIDENT_HEADROOM_GIB: "${STRATA_RESIDENT_HEADROOM_GIB:-1}"
       # A cold first prompt reads the experts its chunk displaces from disk and

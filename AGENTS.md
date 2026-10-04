@@ -74,9 +74,10 @@ The image is Strata's own (`strata-upstream:<ref>`) plus:
   up ("cannot determine available RAM"), which silently disables the resident
   mode. The patch falls back to the v1 memory controller.
 - `script-patches/0001-config-overrides-env.patch`: `docker-entrypoint.sh`
-  writes `STRATA_RESIDENT_BUDGET_GIB` (`--resident-budget-gib`) and
-  `STRATA_REASONING_BUDGET_TOKENS` (`reasoning_budget_tokens`) into the
-  model's config on every start.
+  writes `STRATA_RESIDENT_BUDGET_GIB` (`--resident-budget-gib`),
+  `STRATA_REASONING_BUDGET_TOKENS` (`reasoning_budget_tokens`) and
+  `STRATA_FIT_MAX_TOKENS` (`fit_max_tokens`) into the model's config on every
+  start.
 
 When bumping `STRATA_REF`, check whether upstream fixed these and drop the
 patch, or refresh it if it no longer applies.
@@ -94,6 +95,15 @@ Without a cap the model can think until the request's `max_tokens`: an
 OpenCode session-title request once produced 32,000 tokens (7 min) before a
 one-line title. `STRATA_REASONING_BUDGET_TOKENS=8192` ends the thinking there
 and makes the model answer. Keep it below every client's output limit.
+
+## Requests larger than the context
+
+Strata never truncates: when prompt + `max_tokens` exceeds the context it
+rejects the request ("prompt (70763 tokens) + max tokens (32000) exceeds the
+context"), and OpenCode hangs retrying. OpenCode decides to compact from the
+previous turn's size, so one large tool result can push a request past the
+limit before compaction runs. `STRATA_FIT_MAX_TOKENS=1` makes the server
+shorten `max_tokens` to the room left instead.
 
 ## Interrupted downloads
 

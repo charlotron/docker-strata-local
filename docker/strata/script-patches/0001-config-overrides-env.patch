@@ -1,6 +1,6 @@
 --- a/docker-entrypoint.sh	2026-10-04 22:29:43
-+++ b/docker-entrypoint.sh	2026-10-04 22:29:43
-@@ -52,6 +52,29 @@
++++ b/docker-entrypoint.sh	2026-10-05 00:32:23
+@@ -52,6 +52,32 @@
    [ -e "/opt/strata/strata-$tag.json" ] || ln -s "$cfg" "/opt/strata/strata-$tag.json"
  fi
  
@@ -8,6 +8,7 @@
 +# into the saved config and into the live copy setup reads:
 +#   STRATA_RESIDENT_BUDGET_GIB      -> args --resident-budget-gib N
 +#   STRATA_REASONING_BUDGET_TOKENS  -> "reasoning_budget_tokens": N
++#   STRATA_FIT_MAX_TOKENS=1         -> "fit_max_tokens": true
 +.venv/bin/python - "$cfg" "/opt/strata/strata-$tag.json" <<'PY'
 +import json, os, sys
 +cfg, live = sys.argv[1:3]
@@ -22,6 +23,8 @@
 +think = os.environ.get("STRATA_REASONING_BUDGET_TOKENS", "")
 +if think:
 +    c["reasoning_budget_tokens"] = int(think)
++if os.environ.get("STRATA_FIT_MAX_TOKENS", "") == "1":
++    c["fit_max_tokens"] = True
 +json.dump(c, open(cfg, "w"), indent=1)
 +if os.path.exists(live) and not os.path.islink(live):
 +    json.dump(c, open(live, "w"), indent=1)
