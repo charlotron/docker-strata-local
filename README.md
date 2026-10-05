@@ -93,6 +93,21 @@ default).
 
 `opencode-strata-yolo.sh` skips permission prompts.
 
+The script reads the context size from `/slots` and derives OpenCode's limits
+from it:
+
+| Setting | Rule | At 100K (102400) |
+| --- | --- | ---: |
+| Output limit per response | a third of the context, at most 32768 | 32768 |
+| Compaction buffer | output limit + 1000 | 33768 (compacts at ~68.6K) |
+| Kept verbatim after compaction | a fifth of the context | 20480 |
+
+The server side complements them: a thinking cap of 8192 tokens, requests
+that would overflow the context get a shorter `max_tokens` instead of an
+error, and requests without sampling fields (OpenCode's) use Qwen's
+recommended sampling instead of greedy decoding. Why each one exists:
+AGENTS.md.
+
 ## Maintenance
 
 - **Logs**: `./scripts/docker/attach-server-logs.sh`

@@ -93,3 +93,8 @@ Differences that matter:
 - The thinking cap is a server setting here
   (`STRATA_REASONING_BUDGET_TOKENS`). llama.cpp controls reasoning with its
   own server flags.
+- Strata rejects a request whose prompt + `max_tokens` exceeds the context
+  unless `fit_max_tokens` is on (`STRATA_FIT_MAX_TOKENS=1`, the default here).
+- A request without sampling fields decodes greedy on Strata.
+  `STRATA_SAMPLING` sets the defaults (temperature 0.6, top_p 0.95, top_k 20,
+  repetition_penalty 1.05) to avoid repetition loops.
