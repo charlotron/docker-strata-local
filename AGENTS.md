@@ -75,9 +75,9 @@ The image is Strata's own (`strata-upstream:<ref>`) plus:
   mode. The patch falls back to the v1 memory controller.
 - `script-patches/0001-config-overrides-env.patch`: `docker-entrypoint.sh`
   writes `STRATA_RESIDENT_BUDGET_GIB` (`--resident-budget-gib`),
-  `STRATA_REASONING_BUDGET_TOKENS` (`reasoning_budget_tokens`) and
-  `STRATA_FIT_MAX_TOKENS` (`fit_max_tokens`) into the model's config on every
-  start.
+  `STRATA_REASONING_BUDGET_TOKENS` (`reasoning_budget_tokens`),
+  `STRATA_FIT_MAX_TOKENS` (`fit_max_tokens`) and `STRATA_SAMPLING` (the
+  `sampling` block, JSON) into the model's config on every start.
 
 When bumping `STRATA_REF`, check whether upstream fixed these and drop the
 patch, or refresh it if it no longer applies.
@@ -104,6 +104,15 @@ context"), and OpenCode hangs retrying. OpenCode decides to compact from the
 previous turn's size, so one large tool result can push a request past the
 limit before compaction runs. `STRATA_FIT_MAX_TOKENS=1` makes the server
 shorten `max_tokens` to the room left instead.
+
+## Repetition loops
+
+A request without sampling fields decodes greedy, and OpenCode sends none.
+Greedy decoding on this heavily quantized model fell into loops: a subagent
+repeated `import java.util.StringUtils; // no` until the thinking budget ran
+out, then wrote a 32,000-token tool call. `STRATA_SAMPLING` sets Qwen's
+recommended thinking-mode sampling plus a light repetition penalty (penalties
+cost 1-11% decode speed).
 
 ## Interrupted downloads
 

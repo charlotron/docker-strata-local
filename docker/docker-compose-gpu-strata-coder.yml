@@ -64,6 +64,8 @@ services:
       STRATA_REASONING_BUDGET_TOKENS: "${STRATA_REASONING_BUDGET_TOKENS:-8192}"
       # Shrink max_tokens to the room left instead of rejecting the request.
       STRATA_FIT_MAX_TOKENS: "${STRATA_FIT_MAX_TOKENS:-1}"
+      # Sampling for requests that send none (Strata decodes greedy otherwise).
+      STRATA_SAMPLING: '${STRATA_SAMPLING:-{"temperature": 0.6, "top_p": 0.95, "top_k": 20, "repetition_penalty": 1.05}}'
       # Free RAM the engine keeps aside when sizing that copy (default 4).
       STRATA_RESIDENT_HEADROOM_GIB: "${STRATA_RESIDENT_HEADROOM_GIB:-1}"
       # A cold first prompt reads the experts its chunk displaces from disk and

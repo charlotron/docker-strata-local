@@ -67,15 +67,14 @@ MODEL_NAME=$(basename "${MODEL_NAME:-strata-local}" .gguf)
 export MODEL_NAME
 
 # Output cap: a third of the context, at most 32768 (the full 32768 from 100K
-# up, so the compaction buffer holds a whole response). Compaction keeps twice
-# that, at most half the context.
+# up, so the compaction buffer holds a whole response). Compaction keeps a
+# fifth of the context verbatim: more leaves the session right under the
+# threshold, so it compacts again a turn or two later.
 STRATA_OUTPUT_LIMIT=$((STRATA_CONTEXT_SIZE / 3))
 (( STRATA_OUTPUT_LIMIT > 32768 )) && STRATA_OUTPUT_LIMIT=32768
 export STRATA_OUTPUT_LIMIT
 export STRATA_COMPACT_BUFFER=$((STRATA_OUTPUT_LIMIT + 1000))
-STRATA_COMPACT_KEEP=$((STRATA_OUTPUT_LIMIT * 2))
-(( STRATA_COMPACT_KEEP > STRATA_CONTEXT_SIZE / 2 )) && STRATA_COMPACT_KEEP=$((STRATA_CONTEXT_SIZE / 2))
-export STRATA_COMPACT_KEEP
+export STRATA_COMPACT_KEEP=$((STRATA_CONTEXT_SIZE / 5))
 
 export OPENCODE_CONFIG="${TMPDIR:-/tmp}/opencode-strata.json"
 trap 'rm -f "$OPENCODE_CONFIG"' EXIT SIGINT SIGTERM
