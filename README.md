@@ -48,7 +48,12 @@ engine hands the borrowed GPU cache slots back.
 
 ### 1. Prerequisites
 
-- Windows with WSL2 and Docker Desktop (WSL backend), NVIDIA driver 580+.
+- **Docker is required**: the server only runs in a container. Here that is
+  Docker Desktop with the WSL2 backend on Windows; Docker Engine with the
+  NVIDIA Container Toolkit on Linux works the same way.
+- **An NVIDIA GPU with 12 GB of VRAM or more is required** (RTX 20 series or
+  newer, driver 580+). Strata does not run on smaller cards.
+- 32 GB of RAM: the Coder is the only Strata model that fits it.
 - **WSL2 memory limit at 28 GB** (see AGENTS.md):
   ```ini
   # %USERPROFILE%\.wslconfig
@@ -59,7 +64,7 @@ engine hands the borrowed GPU cache slots back.
   then `wsl --shutdown` from PowerShell.
 - ~70 GB free on the disk holding `STRATA_DATA_DIR`. Use native WSL storage
   (e.g. `/home/<user>/data/strata`), never a `/mnt/<drive>` path.
-- OpenCode (`npm install -g opencode-ai`), `jq`, `node`.
+- OpenCode (`npm install -g opencode-ai`), `curl`, `jq`, `node`.
 
 ### 2. Configuration
 
